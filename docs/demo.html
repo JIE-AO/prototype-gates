@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>prototype-gates — 一条命令，抓住“看着对、点着坏”的原型</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b22; --card2:#1c2330; --line:#2a3242;
+    --fg:#e6edf3; --sub:#8b98a9; --green:#3fb950; --red:#f85149; --amber:#d29922; --blue:#58a6ff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--fg);font:15px/1.75 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+       display:flex;justify-content:center;padding:48px 20px 80px}
+  .wrap{max-width:1060px;width:100%}
+
+  /* ── hero ── */
+  .hero{text-align:center;margin-bottom:44px}
+  .hero h1{font-size:34px;font-weight:800;letter-spacing:-.5px;line-height:1.3}
+  .hero h1 em{font-style:normal;color:var(--blue)}
+  .hero p{color:var(--sub);margin-top:12px;font-size:16.5px}
+  .badgeterm{display:inline-block;margin-top:22px;background:#0a0e14;border:1px solid var(--line);border-radius:10px;
+    padding:13px 22px;font:14px/1.5 "SF Mono",Menlo,Consolas,monospace;color:#c9d1d9}
+  .badgeterm .p{color:var(--green)} .badgeterm .c{color:var(--sub)}
+
+  /* ── stage ── */
+  .stage{display:grid;grid-template-columns:340px 1fr;gap:26px;align-items:start}
+  @media(max-width:860px){.stage{grid-template-columns:1fr}}
+
+  /* phone */
+  .phonebox{position:sticky;top:24px}
+  @media(max-width:860px){.phonebox{position:static}}
+  .phone{background:#000;border-radius:34px;padding:10px;box-shadow:0 20px 60px rgba(0,0,0,.55)}
+  .screen{background:#f2f2f7;border-radius:26px;height:560px;overflow:hidden;position:relative;color:#111}
+  .notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:86px;height:22px;background:#000;border-radius:12px;z-index:9}
+  .mbar{background:#fff;padding:38px 14px 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #e5e5ea;font-weight:700;font-size:15px}
+  .mbar .bk{color:var(--blue);font-size:20px;line-height:1;cursor:pointer}
+  .mbody{padding:12px 14px;font-size:13.5px}
+  .mrow{background:#fff;border-radius:10px;padding:11px 13px;margin-bottom:8px;display:flex;justify-content:space-between;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .mtab{position:absolute;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #d8d8de;display:flex}
+  .mtab button{flex:1;padding:13px 0 20px;background:none;border:none;font-size:12.5px;color:var(--blue);cursor:pointer}
+  .mtab button.on{font-weight:700}
+  .mempty{padding:40px 20px;text-align:center;color:#8e8e93;font-size:13px}
+
+  /* 缺陷可视层 */
+  .flaw{position:absolute;border:2px dashed var(--red);border-radius:12px;pointer-events:none;opacity:0;transition:opacity .35s;z-index:8;background:rgba(248,81,73,.12)}
+  .flaw.show{opacity:1}
+  .flawtag{position:absolute;background:var(--red);color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;
+    top:-11px;right:8px;white-space:nowrap}
+
+  /* right panel */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  .panelhead{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+  .panelhead b{font-size:16px}
+  .score{font:13px "SF Mono",Menlo,monospace;color:var(--sub)}
+  .score .ok{color:var(--green)} .score .no{color:var(--red)}
+  .pick{display:flex;gap:8px;padding:14px 20px 0}
+  .pick label{flex:1;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;
+    font-size:13.5px;display:flex;gap:8px;align-items:center;transition:border-color .2s}
+  .pick label.on{border-color:var(--blue)}
+  .pick input{accent-color:var(--blue)}
+  .runrow{padding:14px 20px}
+  .runbtn{width:100%;padding:13px;border:none;border-radius:11px;background:var(--blue);color:#fff;font-size:15.5px;font-weight:700;cursor:pointer;transition:transform .1s}
+  .runbtn:active{transform:scale(.985)}
+  .runbtn:disabled{opacity:.55;cursor:wait}
+
+  /* gates list */
+  .gates{padding:6px 12px 16px;min-height:280px;max-height:430px;overflow-y:auto}
+  .gates:empty::before{content:"点上面的按钮，11 项检查会一条一条亮出来。红的那条，左边手机上会标出坏在哪。";
+    display:block;color:var(--sub);font-size:13.5px;padding:48px 18px;text-align:center;line-height:1.8}
+  .gate{display:flex;gap:10px;padding:9px 10px;border-radius:9px;font-size:13.5px;opacity:.38;transition:opacity .25s, background .25s}
+  .gate.lit{opacity:1}
+  .gate .ic{width:19px;flex:none;text-align:center}
+  .gate .nm{flex:1}
+  .gate .why{display:none;margin-top:5px;color:#ffb0ab;font-size:12.5px;line-height:1.55;background:rgba(248,81,73,.08);
+    border-left:2.5px solid var(--red);padding:7px 10px;border-radius:0 8px 8px 0}
+  .gate.fail .why{display:block}
+  .gate pass,
+  .gate.pass .nm{color:#b8e6c3}
+
+  /* sections */
+  .sec{margin-top:52px}
+  .sec h2{font-size:23px;font-weight:800;margin-bottom:8px}
+  .sec .lead{color:var(--sub);margin-bottom:22px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:860px){.cards{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .card .t{font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .card .d{color:var(--sub);font-size:13.5px}
+  .card .d b{color:var(--fg)}
+
+  /* story */
+  .story{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:14px;
+    display:grid;grid-template-columns:44px 1fr;gap:16px}
+  .story .no{font:22px/1 "SF Mono",monospace;color:var(--blue);font-weight:800;padding-top:2px}
+  .story .t{font-weight:700;margin-bottom:6px}
+  .story .d{color:var(--sub);font-size:14px}
+  .story .d b{color:var(--fg)}
+
+  .foot{margin-top:56px;text-align:center;color:var(--sub);font-size:13.5px}
+  .foot a{color:var(--blue);text-decoration:none;font-weight:600}
+  .foot .cmd{display:inline-block;margin-top:12px;background:#0a0e14;border:1px solid var(--line);border-radius:9px;
+    padding:10px 18px;font:13px "SF Mono",Menlo,monospace;color:#c9d1d9}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <h1>AI 写的 HTML 原型，<em>看着对、点着坏</em></h1>
+    <p>prototype-gates 把它当试卷来批：一条命令，11 项机器检查，坏哪说哪。下面是真跑一次给你看。</p>
+    <div class="badgeterm"><span class="p">$</span> npx prototype-gates <span class="c">你的原型.html</span></div>
+  </div>
+
+  <div class="stage">
+    <!-- 手机 -->
+    <div class="phonebox">
+      <div class="phone">
+        <div class="screen" id="screen">
+          <div class="notch"></div>
+          <div class="mbar"><span class="bk" id="bk" onclick="goBack()">‹</span><span id="mtitle">订单</span></div>
+          <div class="mbody" id="mbody"></div>
+          <div class="mtab" id="mtab">
+            <button id="tabA" class="on" onclick="goHome()">订单 (<span id="cntA">4</span>)</button>
+            <button id="tabB" onclick="goMine()">我的 (<span id="cntB">2</span>)</button>
+          </div>
+
+          <!-- 缺陷标注层 -->
+          <div class="flaw" id="f-handler" style="left:50%;right:8px;bottom:64px;height:56px">
+            <span class="flawtag">点了没反应</span></div>
+          <div class="flaw" id="f-count" style="left:8px;right:50%;bottom:64px;height:56px">
+            <span class="flawtag">写着 2 其实 3</span></div>
+          <div class="flaw" id="f-back" style="left:6px;top:34px;width:38px;height:38px;border-radius:50%">
+            <span class="flawtag" style="left:34px;right:auto;top:2px">出不去</span></div>
+          <div class="flaw" id="f-css" style="left:8px;right:8px;top:96px;height:100px">
+            <span class="flawtag">样式丢了</span></div>
+          <div class="flaw" id="f-leak" style="left:8px;right:8px;top:206px;height:44px">
+            <span class="flawtag">模板没删</span></div>
+          <div class="flaw" id="f-timer" style="left:8px;right:8px;top:260px;height:44px">
+            <span class="flawtag">会把测试卡死</span></div>
+        </div>
+      </div>
+      <p style="text-align:center;color:var(--sub);font-size:12.5px;margin-top:12px" id="phonelabel">
+        这是一个故意埋了 7 个缺陷的原型（仓库里的 demo-broken.html）
+      </p>
+    </div>
+
+    <!-- 门禁面板 -->
+    <div class="panel">
+      <div class="pick">
+        <label id="lab-broken" class="on"><input type="radio" name="f" checked onchange="pick(true)"> 有病的原型</label>
+        <label id="lab-clean"><input type="radio" name="f" onchange="pick(false)"> 修好的原型</label>
+      </div>
+      <div class="runrow"><button class="runbtn" id="run" onclick="run()">▶ 运行门禁</button></div>
+      <div class="panelhead">
+        <b>门禁报告</b>
+        <span class="score" id="score">— 待运行</span>
+      </div>
+      <div class="gates" id="gates"></div>
+    </div>
+  </div>
+
+  <!-- 三类翻车 -->
+  <div class="sec">
+    <h2>为什么 code review 抓不住它</h2>
+    <p class="lead">三类真实翻车，每类都见过不止一次。文件看着完美，坏的都在“运行那一刻”。</p>
+    <div class="cards">
+      <div class="card"><div class="t">😵 函数被静默吞掉</div>
+        <div class="d">AI 改代码用正则替换，一不小心把<b>下一个函数整个删了</b>。HTML 打开一切正常，用户点按钮——没反应。</div></div>
+      <div class="card"><div class="t">🙈 说的和做的不一样</div>
+        <div class="d">页面自称“全部 5 种状态”，里面手工铺的演示数据只有 4 种。<b>人眼全漏过，用户一眼撞上</b>。</div></div>
+      <div class="card"><div class="t">👻 样式凭空消失</div>
+        <div class="d">CSS 类名改了，JS 里的模板没跟上。<b>内容都在、文字都对，屏幕上是一坨没排版的裸文字</b>。</div></div>
+    </div>
+  </div>
+
+  <!-- 33 坑 -->
+  <div class="sec">
+    <h2>它不是拍脑袋写的</h2>
+    <p class="lead">从生产环境用了几个月的质检方法里提炼，背后是 33 条踩坑记录——每一条都真实翻车过至少两次。</p>
+    <div class="story"><div class="no">01</div><div>
+      <div class="t">jsdom 40 项全绿，真机整屏空白</div>
+      <div class="d">一张翻转卡片被入场动画盖住了正面，机器检查“内容都在”全部通过。<b>所以文档里写清了：动画类缺陷必须真浏览器补一刀</b>——工具知道自己的边界。</div></div></div>
+    <div class="story"><div class="no">02</div><div>
+      <div class="t">弹层“点了没反应”的全绿假象</div>
+      <div class="d">弹层挂在隐藏页面里被折叠成 0×0，检查只看“显没显示”就放行。<b>现在的门禁会量真实几何，不在视口内就是不合格</b>。</div></div></div>
+    <div class="story"><div class="no">03</div><div>
+      <div class="t">一条断言盖住 28 个假通过</div>
+      <div class="d">上一轮的提示残留没清空，后面 28 项“是否弹出提示”全被蒙混过关。<b>现在每轮点击前强制清场</b>。这类坑文档里还有 30 条。</div></div></div>
+  </div>
+
+  <div class="foot">
+    <a href="https://github.com/JIE-AO/prototype-gates" target="_blank">github.com/JIE-AO/prototype-gates</a><br>
+    <span class="cmd">npm install -g prototype-gates</span>
+  </div>
+</div>
+
+<script>
+/* ── 数据：与仓库 examples/demo-broken.html 真实输出一致 ── */
+const GATES_BROKEN = [
+  {n:'运行期错误 = 0', s:'pass'},
+  {n:'11 个内联事件处理器全部有定义', s:'fail',
+   w:'处理器 goMine 在页面里被引用了，但函数不存在——上一行函数被正则编辑吞掉了。用户点「我的」标签没反应。'},
+  {n:'全部 3 页可正常渲染', s:'pass'},
+  {n:'id 无重复（7 个）', s:'pass'},
+  {n:'返回按钮都能回去（3 个受检）', s:'fail',
+   w:'「我的」页的返回按钮点了原地不动——有去无回。真实路径点出来的，不是调函数。'},
+  {n:'DOM 类名全部有 CSS 规则', s:'fail',
+   w:'两个孤儿类名（users / order-appbar）：JS 模板还在发旧类名，CSS 已经改名。屏幕上是一坨裸文字。'},
+  {n:'宣称覆盖完整（4 项）', s:'fail',
+   w:'页面宣称 4 个套餐，实际只写了 3 个——「Free」没有。宣称即契约，少一个就是假宣传。'},
+  {n:'禁词内容未出现', s:'pass'},
+  {n:'角标计数与列表一致', s:'fail',
+   w:'标签写「订单 (4)」，列表里实际 2 条——手工铺的 demo 数据对不上。'},
+  {n:'无占位符 / 模板泄漏', s:'fail',
+   w:'{{template_field}} 和 TODO 还留在成品里——生成时的脚手架忘删了。'},
+  {n:'定时器已加环境守卫', s:'fail',
+   w:'裸奔的 setInterval 会把 CI 测试进程永久挂死（超时 124，日志什么都不说）。'},
+];
+const GATES_CLEAN = GATES_BROKEN.map(g => ({n:g.n, s:'pass'}));
+
+/* ── 手机渲染 ── */
+let broken = true, timer = null, sec = 0, runId = 0;
+const HOME_ROWS = [['#1001','已支付'],['#1002','待发货']];
+const MINE_ROWS = [['收藏 1',''],['收藏 2','']];
+let page = 'home';
+
+function render(){
+  // SAFETY: all innerHTML assignments in this demo use hardcoded template
+  // literals with no user-supplied content — static showcase page, no XSS surface.
+  const b = document.getElementById('mbody');
+  const a = document.getElementById('cntA');
+  const mb = document.getElementById('cntB');
+  if (a) a.textContent = broken ? '4' : String(HOME_ROWS.length);
+  if (mb) mb.textContent = String(MINE_ROWS.length);
+  if (page === 'home'){
+    b.innerHTML = HOME_ROWS.map(r =>
+      `<div class="mrow" style="${broken?'font-size:17px;line-height:2.1;border-radius:0;box-shadow:none':''}">
+        <span>订单 ${r[0]}</span><b>${r[1]}</b></div>`).join('')
+      + (broken ? `<div class="mrow" style="background:none;box-shadow:none;color:#c96">{{template_field}} TODO: fix</div>
+                   <div class="mrow" style="background:none;box-shadow:none;color:#c96">⏱ setInterval 未守卫</div>` : '');
+  } else {
+    b.innerHTML = MINE_ROWS.map(r => `<div class="mrow"><span>${r[0]}</span></div>`).join('');
+  }
+  document.getElementById('bk').style.visibility = page==='home' ? 'hidden' : 'visible';
+  document.getElementById('mtitle').textContent = page==='home' ? '订单' : '我的';
+}
+function goHome(){ page='home'; render(); }
+function goMine(){
+  // 埋缺陷 1：goMine 在坏原型里不存在
+  if (broken){ flash('f-handler'); return; }
+  page='mine'; render();
+}
+function goBack(){
+  // 埋缺陷 2：坏原型的返回在「我的」页原地不动
+  if (!broken && page==='mine'){ page='home'; render(); }
+  else if (broken){ flash('f-back'); }
+}
+function flash(id){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 1600);
+}
+
+/* ── 面板 ── */
+function pick(isBroken){
+  clearInterval(timer); timer = null; runId++;
+  broken = isBroken; page='home'; render();
+  document.getElementById('lab-broken').classList.toggle('on', isBroken);
+  document.getElementById('lab-clean').classList.toggle('on', !isBroken);
+  document.getElementById('phonelabel').textContent = isBroken
+    ? '这是一个故意埋了 7 个缺陷的原型（仓库里的 demo-broken.html）'
+    : '修好后的样子（demo-clean.html）——同一个工具，11 项全过';
+  document.getElementById('gates').innerHTML = '';
+  document.getElementById('score').textContent = '— 待运行';
+  ['f-handler','f-count','f-back','f-css','f-leak','f-timer'].forEach(id=>
+    document.getElementById(id).classList.remove('show'));
+}
+
+const FLAW_MAP = {1:'f-handler',4:'f-back',5:'f-css',6:null,7:'f-count',8:'f-leak',9:'f-timer'};
+function run(){
+  const btn = document.getElementById('run');
+  const mine = ++runId;
+  const isBroken = broken;
+  btn.disabled = true; btn.textContent = '⏳ 正在逐项检查…';
+  const list = isBroken ? GATES_BROKEN : GATES_CLEAN;
+  const box = document.getElementById('gates');
+  box.innerHTML = '';
+  let pass=0, fail=0, i=0;
+  clearInterval(timer);
+  timer = setInterval(()=>{
+    if (mine !== runId) return;
+    if (i >= list.length){
+      clearInterval(timer);
+      document.getElementById('score').innerHTML =
+        `<span class="ok">${pass} PASS</span> / <span class="${fail?'no':'ok'}">${fail} FAIL</span>` +
+        (isBroken ? ' &nbsp;· 不通过，不能上线' : ' &nbsp;· 全部通过');
+      btn.disabled = false; btn.textContent = '▶ 再跑一次';
+      if (!isBroken) ['f-handler','f-count','f-back','f-css','f-leak','f-timer'].forEach(id=>
+        document.getElementById(id).classList.remove('show'));
+      return;
+    }
+    const g = list[i];
+    const div = document.createElement('div');
+    div.className = 'gate lit ' + (g.s==='pass'?'pass':'fail');
+    div.innerHTML = `<span class="ic">${g.s==='pass'?'✅':'❌'}</span><span class="nm">${g.n}` +
+      (g.s==='fail' ? `<span class="why">${g.w}</span>` : '') + `</span>`;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    if (g.s==='pass') pass++; else {
+      fail++;
+      if (isBroken && FLAW_MAP[i]) { const f = document.getElementById(FLAW_MAP[i]); if(f) f.classList.add('show'); }
+    }
+    document.getElementById('score').innerHTML = `检查中… <span class="ok">${pass} 通过</span> / <span class="${fail?'no':'ok'}">${fail} 没过</span>`;
+    i++;
+  }, 280);
+}
+
+render();
+</script>
+</body>
+</html>
