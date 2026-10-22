@@ -1,0 +1,16 @@
+{
+  "name": "prototype-gates",
+  "version": "0.1.0",
+  "description": "CI-grade quality gates for single-file HTML prototypes — catch the silent failures code review can't see.",
+  "bin": { "prototype-gates": "bin/cli.js" },
+  "main": "src/runner.js",
+  "scripts": {
+    "test": "node bin/cli.js examples/demo.html"
+  },
+  "keywords": ["prototype", "html", "qa", "jsdom", "quality-gates", "testing", "ai-generated-code", "e2e"],
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "jsdom": "^30.1.3"
+  }
+}

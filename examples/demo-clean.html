@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Demo App</title>
+<style>
+  .page { display: none; }
+  .page.active { display: block; }
+  .appbar { display: flex; align-items: center; padding: 12px; background: #fff; }
+  .appbar .back { cursor: pointer; }
+  .list { padding: 12px; }
+  .row { padding: 10px; border-bottom: 1px solid #eee; }
+  .tabbar { display: flex; border-top: 1px solid #ddd; }
+  .tabbar button { flex: 1; padding: 12px; }
+  .p-row { display: flex; justify-content: space-between; padding: 8px 12px; }
+  .btn-primary { background: #2b6cff; color: #fff; padding: 10px 16px; border-radius: 8px; }
+</style>
+</head>
+<body>
+  <div id="app">
+
+    <!-- home -->
+    <section id="home" class="page active">
+      <header class="appbar"><span class="back" onclick="goBack()">‹ Back</span><b>Demo App</b></header>
+      <div class="list">
+        <div class="row" onclick="goDetail(1)">Order #1001</div>
+        <div class="row" onclick="goDetail(2)">Order #1002</div>
+        <div class="row" onclick="goDetail(3)">Order #1003</div>
+      </div>
+      <div class="tabbar">
+        <button id="tab-home" data-count-target="#home .list .row" onclick="showPage('home')">Orders (3)</button>
+        <button id="tab-mine" data-count-target="#mine .list .row" onclick="goMine()">Mine (3)</button>
+      </div>
+    </section>
+
+    <!-- detail -->
+    <section id="detail" class="page">
+      <header class="appbar"><span class="back" onclick="goBack()">‹ Back</span><b>Order Detail</b></header>
+      <div class="list">
+        <div class="p-row"><span>Amount</span><b>￥128.00</b></div>
+        <div class="p-row"><span>Status</span><b>Paid</b></div>
+        <div class="p-row"><span>Items</span><b>3 items</b></div>
+      </div>
+    </section>
+
+    <!-- mine -->
+    <section id="mine" class="page">
+      <header class="appbar"><span class="back" onclick="goBack()">‹ Back</span><b>My Page</b></header>
+      <div class="list">
+        <div class="row">Favorite #1</div>
+        <div class="row">Favorite #2</div>
+        <div class="row">Favorite #3</div>
+      </div>
+      <div data-claim='["Unlimited", "Pro", "Team", "Free"]'>Plans: Unlimited, Pro, Team, Free</div>
+      <div id="cardBack" data-forbidden='["SecretKey", "internal_admin"]'>public info only</div>
+    </section>
+
+  </div>
+  <script>
+    function showPage(id) {
+      document.querySelectorAll('section.page').forEach(p =>
+        p.classList.toggle('active', p.id === id));
+      window.scrollTo(0, 0);
+    }
+
+    function goDetail(n) { showPage('detail'); }
+    function goMine() { showPage('mine'); }
+    function goBack() {
+      const cur = document.querySelector('section.page.active');
+      if (cur.id === 'detail' || cur.id === 'mine') showPage('home');
+    }
+  </script>
+</body>
+</html>
